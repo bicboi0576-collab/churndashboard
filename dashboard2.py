@@ -1,26 +1,25 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import numpy as np
+import matplotlib.pyplot as plt
 
-# -------------------- PAGE SETUP --------------------
+#PAGE SETUP
 st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
-st.title("Telco Customer Churn – Interactive Dashboard")
+st.title("Telco Customer Churn – Dashboard")
 
 
-# -------------------- LOAD DATA --------------------
+#LOAD DATA
 @st.cache_data
 def load_data():
-    # Make sure this CSV file is in the same folder as this script
     df = pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
     df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
     df = df.dropna(subset=["TotalCharges"]).reset_index(drop=True)
     return df
 
-
 df = load_data()
 
 
-# -------------------- SIDEBAR FILTERS --------------------
+#SIDEBAR FILTERS
 st.sidebar.header("Filters")
 
 # Contract filter
@@ -70,8 +69,8 @@ if filtered_df.empty:
     st.stop()
 
 
-# -------------------- TOP METRICS --------------------
-st.subheader("Overview (After Filters)")
+#TOP METRICS 
+st.subheader("Overview")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -86,71 +85,129 @@ col3.metric("Avg Monthly Charges", f"${avg_monthly:.2f}")
 col4.metric("Avg Tenure", f"{avg_tenure:.1f} months")
 
 
-# -------------------- CHARTS ROW 1 --------------------
+#CHARTS ROW 1
 st.markdown("---")
 left, right = st.columns(2)
 
-# Churn distribution (hover shows count + label)
+# 1) Churn distribution
 with left:
     st.subheader("Churn Distribution")
-    fig = px.histogram(
-        filtered_df,
-        x="Churn",
-        color="Churn",
-        text_auto=True,
-        title="Churn Count"
-    )
-    fig.update_layout(showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+    counts = filtered_df["Churn"].value_counts().reindex(["No", "Yes"])
+    fig, ax = plt.subplots(figsize=(5, 4))
+    ax.bar(counts.index, counts.values)
+    ax.set_xlabel("Churn")
+    ax.set_ylabel("Count")
+    st.pyplot(fig)
 
-# Churn by contract type (hover shows contract, churn, count)
+# 2) Churn by contract type (grouped bar)
 with right:
     st.subheader("Churn by Contract Type")
-    fig = px.histogram(
-        filtered_df,
-        x="Contract",
-        color="Churn",
-        barmode="group",
-        text_auto=True,
-        title="Churn by Contract Type"
-    )
-    fig.update_layout(xaxis_title="Contract", yaxis_title="Count")
-    st.plotly_chart(fig, use_container_width=True)
+    ct = pd.crosstab(filtered_df["Contract"], filtered_df["Churn"])
+    fig, ax = plt.subplots(figsize=(6, 4))
+    x = np.arange(len(ct.index))
+    width = 0.35
+
+    ax.bar(x - width/2, ct["No"], width, label="No")
+    ax.bar(x + width/2, ct["Yes"], width, label="Yes")
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(ct.index, rotation=15)
+    ax.set_xlabel("Contract Type")
+    ax.set_ylabel("Count")
+    ax.legend(title="Churn")
+    st.pyplot(fig)
 
 
-# -------------------- CHARTS ROW 2 --------------------
+#CHARTS ROW 2 
 st.markdown("---")
 left2, right2 = st.columns(2)
 
-# Tenure distribution (hover shows tenure, count, churn)
+# 3) Tenure distribution by churn (overlapping histograms)
 with left2:
     st.subheader("Tenure Distribution by Churn")
-    fig = px.histogram(
-        filtered_df,
-        x="tenure",
-        color="Churn",
-        nbins=40,
-        marginal="box",
-        title="Tenure Distribution"
-    )
-    fig.update_layout(xaxis_title="Tenure (months)", yaxis_title="Count")
-    st.plotly_chart(fig, use_container_width=True)
+    fig, ax = plt.subplots(figsize=(6, 4))
+    tenure_no = filtered_df[filtered_df["Churn"] == "No"]["tenure"]
+    tenure_yes = filtered_df[filtered_df["Churn"] == "Yes"]["tenure"]
 
-# Monthly charges by churn (hover shows churn + charge value)
+    ax.hist(tenure_no, bins=30, alpha=0.6, label="No")
+    ax.hist(tenure_yes, bins=30, alpha=0.6, label="Yes")
+    ax.set_xlabel("Tenure (months)")
+    ax.set_ylabel("Count")
+    ax.legend(title="Churn")
+    st.pyplot(fig)
+
+# 4) Monthly charges by churn (boxplot)
 with right2:
-    st.subheader("Monthly Charges by Churn Group")
-    fig = px.box(
-        filtered_df,
-        x="Churn",
-        y="MonthlyCharges",
-        color="Churn",
-        title="Monthly Charges by Churn"
-    )
-    fig.update_layout(xaxis_title="Churn", yaxis_title="Monthly Charges ($)")
-    st.plotly_chart(fig, use_container_width=True)
+    st.subheader("Monthly Charges by Churn")
+    fig, ax = plt.subplots(figsize=(6, 4))
+    data_to_plot = [
+        filtered_df[filtered_df["Churn"] == "No"]["MonthlyCharges"],
+        filtered_df[filtered_df["Churn"] == "Yes"]["MonthlyCharges"]
+    ]
+    ax.boxplot(data_to_plot, labels=["No", "Yes"])
+    ax.set_xlabel("Churn")
+    ax.set_ylabel("Monthly Charges ($)")
+    st.pyplot(fig)
 
 
-# -------------------- RAW DATA --------------------
+#CHARTS ROW 3
 st.markdown("---")
-with st.expander("Show Raw Filtered Data"):
+left3, right3 = st.columns(2)
+
+# 5) Churn by Internet Service Type
+with left3:
+    st.subheader("Churn by Internet Service Type")
+    ct_int = pd.crosstab(filtered_df["InternetService"], filtered_df["Churn"])
+    fig, ax = plt.subplots(figsize=(6, 4))
+    x = np.arange(len(ct_int.index))
+    width = 0.35
+    ax.bar(x - width/2, ct_int["No"], width, label="No")
+    ax.bar(x + width/2, ct_int["Yes"], width, label="Yes")
+    ax.set_xticks(x)
+    ax.set_xticklabels(ct_int.index, rotation=15)
+    ax.set_xlabel("Internet Service")
+    ax.set_ylabel("Count")
+    ax.legend(title="Churn")
+    st.pyplot(fig)
+
+# 6) Churn by Payment Method
+with right3:
+    st.subheader("Churn by Payment Method")
+    ct_pay = pd.crosstab(filtered_df["PaymentMethod"], filtered_df["Churn"])
+    fig, ax = plt.subplots(figsize=(7, 4))
+    x = np.arange(len(ct_pay.index))
+    width = 0.35
+    ax.bar(x - width/2, ct_pay["No"], width, label="No")
+    ax.bar(x + width/2, ct_pay["Yes"], width, label="Yes")
+    ax.set_xticks(x)
+    ax.set_xticklabels(ct_pay.index, rotation=25, ha="right")
+    ax.set_xlabel("Payment Method")
+    ax.set_ylabel("Count")
+    ax.legend(title="Churn")
+    st.pyplot(fig)
+
+
+#CORRELATION HEATMAP
+st.markdown("---")
+st.subheader("Correlation Heatmap (Numeric Features)")
+
+numeric_df = filtered_df.select_dtypes(include="number")
+corr = numeric_df.corr()
+
+fig, ax = plt.subplots(figsize=(9, 7))
+cax = ax.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
+ax.set_xticks(np.arange(len(corr.columns)))
+ax.set_yticks(np.arange(len(corr.columns)))
+ax.set_xticklabels(corr.columns, rotation=90)
+ax.set_yticklabels(corr.columns)
+fig.colorbar(cax)
+st.pyplot(fig)
+
+
+#RAW DATA
+st.markdown("---")
+with st.expander("Show Dataset"):
     st.dataframe(filtered_df)
+
+
+
