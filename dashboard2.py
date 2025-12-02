@@ -13,23 +13,12 @@ sns.set(style="whitegrid")
 
 # ------------------ PAGE CONFIG ------------------ #
 st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
-st.title("📊 Telco Customer Churn Dashboard")
+st.title("Telco Customer Churn Dashboard")
 
 # ------------------ OVERVIEW TEXT ------------------ #
 st.markdown("""
 ### Overview
 
-This dashboard explores a telecom customer churn dataset and visualizes patterns related to which customers are more likely to leave (churn).
-You can use the filters on the left to focus on specific customer segments based on contract type, churn status, internet service, and tenure.
-
-The charts below show:
-- How many customers churn vs. stay  
-- How churn varies by contract type  
-- How tenure is distributed for churners vs. non-churners  
-- Correlations between numeric variables  
-- How well a Random Forest model predicts churn (confusion matrix)  
-- Which features are most important for predicting churn  
-""")
 
 
 # ------------------ LOAD & PREP DATA ------------------ #
@@ -134,7 +123,7 @@ if filtered_df.empty:
 
 
 # ------------------ OVERVIEW METRICS ------------------ #
-st.subheader("📌 Overview (After Filters)")
+st.subheader("Overview")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -236,5 +225,6 @@ with row3_col2:
 
 # ------------------ RAW DATA ------------------ #
 st.markdown("---")
-with st.expander("Show Raw Filtered Data"):
+with st.expander("Show Dataset"):
     st.dataframe(filtered_df)
+
