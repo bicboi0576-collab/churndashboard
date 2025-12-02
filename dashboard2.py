@@ -4,7 +4,7 @@ import plotly.express as px
 
 # -------------------- PAGE SETUP --------------------
 st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
-st.title("Telco Customer Churn – Interactive Dashboard")
+st.title("📊 Telco Customer Churn – Interactive Dashboard")
 
 
 # -------------------- LOAD DATA --------------------
@@ -71,7 +71,7 @@ if filtered_df.empty:
 
 
 # -------------------- TOP METRICS --------------------
-st.subheader("Overview (After Filters)")
+st.subheader("📌 Overview (After Filters)")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -90,7 +90,7 @@ col4.metric("Avg Tenure", f"{avg_tenure:.1f} months")
 st.markdown("---")
 left, right = st.columns(2)
 
-# Churn distribution (hover shows count + label)
+# Churn distribution
 with left:
     st.subheader("Churn Distribution")
     fig = px.histogram(
@@ -103,7 +103,7 @@ with left:
     fig.update_layout(showlegend=False)
     st.plotly_chart(fig, use_container_width=True)
 
-# Churn by contract type (hover shows contract, churn, count)
+# Churn by contract type
 with right:
     st.subheader("Churn by Contract Type")
     fig = px.histogram(
@@ -122,7 +122,7 @@ with right:
 st.markdown("---")
 left2, right2 = st.columns(2)
 
-# Tenure distribution (hover shows tenure, count, churn)
+# Tenure distribution
 with left2:
     st.subheader("Tenure Distribution by Churn")
     fig = px.histogram(
@@ -136,7 +136,7 @@ with left2:
     fig.update_layout(xaxis_title="Tenure (months)", yaxis_title="Count")
     st.plotly_chart(fig, use_container_width=True)
 
-# Monthly charges by churn (hover shows churn + charge value)
+# Monthly charges by churn
 with right2:
     st.subheader("Monthly Charges by Churn Group")
     fig = px.box(
@@ -150,8 +150,58 @@ with right2:
     st.plotly_chart(fig, use_container_width=True)
 
 
+# -------------------- CHARTS ROW 3 (NEW) --------------------
+st.markdown("---")
+left3, right3 = st.columns(2)
+
+# Churn by Internet Service
+with left3:
+    st.subheader("Churn by Internet Service Type")
+    fig = px.histogram(
+        filtered_df,
+        x="InternetService",
+        color="Churn",
+        barmode="group",
+        text_auto=True,
+        title="Churn by Internet Service"
+    )
+    fig.update_layout(xaxis_title="Internet Service", yaxis_title="Count")
+    st.plotly_chart(fig, use_container_width=True)
+
+# Churn by Payment Method
+with right3:
+    st.subheader("Churn by Payment Method")
+    fig = px.histogram(
+        filtered_df,
+        x="PaymentMethod",
+        color="Churn",
+        barmode="group",
+        title="Churn by Payment Method"
+    )
+    fig.update_layout(xaxis_title="Payment Method", yaxis_title="Count", xaxis_tickangle=-30)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# -------------------- CORRELATION HEATMAP (NEW) --------------------
+st.markdown("---")
+st.subheader("Correlation Heatmap (Numeric Features)")
+
+numeric_df = filtered_df.select_dtypes(include="number")
+corr = numeric_df.corr()
+
+fig = px.imshow(
+    corr,
+    text_auto=False,
+    color_continuous_scale="RdBu",
+    zmin=-1,
+    zmax=1,
+    title="Correlation Between Numeric Variables"
+)
+fig.update_layout(width=900, height=700)
+st.plotly_chart(fig, use_container_width=True)
+
+
 # -------------------- RAW DATA --------------------
 st.markdown("---")
 with st.expander("Show Raw Filtered Data"):
     st.dataframe(filtered_df)
-
