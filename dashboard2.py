@@ -18,7 +18,7 @@ st.title("Telco Customer Churn Dashboard")
 # ------------------ OVERVIEW TEXT ------------------ #
 st.markdown("""
 ### Overview
-
+)
 
 
 # ------------------ LOAD & PREP DATA ------------------ #
@@ -227,4 +227,5 @@ with row3_col2:
 st.markdown("---")
 with st.expander("Show Dataset"):
     st.dataframe(filtered_df)
+
 
