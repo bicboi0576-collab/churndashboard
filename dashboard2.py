@@ -1,20 +1,21 @@
 import streamlit as st
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
+import plotly.express as px
 
 # -------------------- PAGE SETUP --------------------
 st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
-st.title("📊 Telco Customer Churn – Dashboard (No Hover Version)")
+st.title("Telco Customer Churn – Interactive Dashboard")
 
 
 # -------------------- LOAD DATA --------------------
 @st.cache_data
 def load_data():
+    # Make sure this CSV file is in the same folder as this script
     df = pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
     df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
     df = df.dropna(subset=["TotalCharges"]).reset_index(drop=True)
     return df
+
 
 df = load_data()
 
@@ -70,7 +71,7 @@ if filtered_df.empty:
 
 
 # -------------------- TOP METRICS --------------------
-st.subheader("📌 Overview (After Filters)")
+st.subheader("Overview (After Filters)")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -89,72 +90,64 @@ col4.metric("Avg Tenure", f"{avg_tenure:.1f} months")
 st.markdown("---")
 left, right = st.columns(2)
 
-# Churn distribution
+# Churn distribution (hover shows count + label)
 with left:
     st.subheader("Churn Distribution")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.countplot(data=filtered_df, x="Churn", ax=ax)
-    st.pyplot(fig)
+    fig = px.histogram(
+        filtered_df,
+        x="Churn",
+        color="Churn",
+        text_auto=True,
+        title="Churn Count"
+    )
+    fig.update_layout(showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
 
-# Churn by contract type
+# Churn by contract type (hover shows contract, churn, count)
 with right:
     st.subheader("Churn by Contract Type")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.countplot(data=filtered_df, x="Contract", hue="Churn", ax=ax)
-    plt.xticks(rotation=15)
-    st.pyplot(fig)
+    fig = px.histogram(
+        filtered_df,
+        x="Contract",
+        color="Churn",
+        barmode="group",
+        text_auto=True,
+        title="Churn by Contract Type"
+    )
+    fig.update_layout(xaxis_title="Contract", yaxis_title="Count")
+    st.plotly_chart(fig, use_container_width=True)
 
 
 # -------------------- CHARTS ROW 2 --------------------
 st.markdown("---")
 left2, right2 = st.columns(2)
 
-# Tenure distribution
+# Tenure distribution (hover shows tenure, count, churn)
 with left2:
     st.subheader("Tenure Distribution by Churn")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.kdeplot(data=filtered_df, x="tenure", hue="Churn", fill=True, ax=ax)
-    st.pyplot(fig)
+    fig = px.histogram(
+        filtered_df,
+        x="tenure",
+        color="Churn",
+        nbins=40,
+        marginal="box",
+        title="Tenure Distribution"
+    )
+    fig.update_layout(xaxis_title="Tenure (months)", yaxis_title="Count")
+    st.plotly_chart(fig, use_container_width=True)
 
-# Monthly charges by churn
+# Monthly charges by churn (hover shows churn + charge value)
 with right2:
-    st.subheader("Monthly Charges by Churn")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.boxplot(data=filtered_df, x="Churn", y="MonthlyCharges", ax=ax)
-    st.pyplot(fig)
-
-
-# -------------------- CHARTS ROW 3 (ADDED) --------------------
-st.markdown("---")
-left3, right3 = st.columns(2)
-
-# Churn by Internet Service
-with left3:
-    st.subheader("Churn by Internet Service Type")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.countplot(data=filtered_df, x="InternetService", hue="Churn", ax=ax)
-    plt.xticks(rotation=15)
-    st.pyplot(fig)
-
-# Churn by Payment Method
-with right3:
-    st.subheader("Churn by Payment Method")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.countplot(data=filtered_df, x="PaymentMethod", hue="Churn", ax=ax)
-    plt.xticks(rotation=25)
-    st.pyplot(fig)
-
-
-# -------------------- CORRELATION HEATMAP --------------------
-st.markdown("---")
-st.subheader("Correlation Heatmap (Numeric Features)")
-
-numeric_df = filtered_df.select_dtypes(include="number")
-corr = numeric_df.corr()
-
-fig, ax = plt.subplots(figsize=(10,8))
-sns.heatmap(corr, cmap="coolwarm", center=0, annot=False, ax=ax)
-st.pyplot(fig)
+    st.subheader("Monthly Charges by Churn Group")
+    fig = px.box(
+        filtered_df,
+        x="Churn",
+        y="MonthlyCharges",
+        color="Churn",
+        title="Monthly Charges by Churn"
+    )
+    fig.update_layout(xaxis_title="Churn", yaxis_title="Monthly Charges ($)")
+    st.plotly_chart(fig, use_container_width=True)
 
 
 # -------------------- RAW DATA --------------------
