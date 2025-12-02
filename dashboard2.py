@@ -11,7 +11,7 @@ st.title("Telco Customer Churn – Interactive Dashboard")
 @st.cache_data
 def load_data():
     # Make sure this CSV file is in the same folder as this script
-    df = pd.read_csv(r"C:\Users\bicbo\Downloads\WA_Fn-UseC_-Telco-Customer-Churn.csv")
+    df = pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
     df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
     df = df.dropna(subset=["TotalCharges"]).reset_index(drop=True)
     return df
@@ -154,3 +154,4 @@ with right2:
 st.markdown("---")
 with st.expander("Show Raw Filtered Data"):
     st.dataframe(filtered_df)
+
