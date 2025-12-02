@@ -13,11 +13,22 @@ sns.set(style="whitegrid")
 
 # ------------------ PAGE CONFIG ------------------ #
 st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
-st.title("Telco Customer Churn Dashboard")
+st.title("📊 Telco Customer Churn Dashboard")
 
 # ------------------ OVERVIEW TEXT ------------------ #
 st.markdown("""
 ### Overview
+
+This dashboard explores a telecom customer churn dataset and visualizes patterns related to which customers are more likely to leave (churn).
+You can use the filters on the left to focus on specific customer segments based on contract type, churn status, internet service, and tenure.
+
+The charts below show:
+- How many customers churn vs. stay  
+- How churn varies by contract type  
+- How tenure is distributed for churners vs. non-churners  
+- Correlations between numeric variables  
+- How well a Random Forest model predicts churn (confusion matrix)  
+- Which features are most important for predicting churn  
 """)
 
 
@@ -31,10 +42,10 @@ def load_and_prepare():
     df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
     df = df.dropna(subset=["TotalCharges"]).reset_index(drop=True)
 
-    # Keep a copy with original categorical labels for charts/filters
+    # Copy with original categorical labels (for filters & some charts)
     df_raw = df.copy()
 
-    # Prepare a version for modeling (encode categoricals)
+    # Model/correlation version: drop ID and encode categoricals
     df_model = df_raw.drop(columns=["customerID"])
     le_dict = {}
     for col in df_model.select_dtypes(include="object").columns:
@@ -42,7 +53,7 @@ def load_and_prepare():
         df_model[col] = le.fit_transform(df_model[col])
         le_dict[col] = le
 
-    # Train/test split for model (on full dataset, not filtered)
+    # Train/test split for model (same as notebook)
     X = df_model.drop("Churn", axis=1)
     y = df_model["Churn"]
 
@@ -50,7 +61,6 @@ def load_and_prepare():
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    # Random Forest model
     rf = RandomForestClassifier(
         n_estimators=150,
         max_depth=12,
@@ -59,23 +69,20 @@ def load_and_prepare():
     rf.fit(X_train, y_train)
     y_pred = rf.predict(X_test)
 
-    # Confusion matrix
     cm = confusion_matrix(y_test, y_pred)
 
-    # Feature importance (top 15)
     importances = pd.Series(rf.feature_importances_, index=X.columns)
     top15 = importances.sort_values(ascending=False).head(15)
 
-    return df_raw, cm, top15
+    return df_raw, df_model, cm, top15
 
 
-df_raw, cm, top15 = load_and_prepare()
+df_raw, df_model, cm, top15 = load_and_prepare()
 
 
 # ------------------ SIDEBAR FILTERS ------------------ #
 st.sidebar.header("Filters")
 
-# Contract filter (uses original text labels)
 contract_options = df_raw["Contract"].unique().tolist()
 contract_filter = st.sidebar.multiselect(
     "Contract Type",
@@ -83,7 +90,6 @@ contract_filter = st.sidebar.multiselect(
     default=contract_options
 )
 
-# Churn filter
 churn_options = df_raw["Churn"].unique().tolist()
 churn_filter = st.sidebar.multiselect(
     "Churn Status",
@@ -91,7 +97,6 @@ churn_filter = st.sidebar.multiselect(
     default=churn_options
 )
 
-# Internet Service filter
 internet_options = df_raw["InternetService"].unique().tolist()
 internet_filter = st.sidebar.multiselect(
     "Internet Service Type",
@@ -99,7 +104,6 @@ internet_filter = st.sidebar.multiselect(
     default=internet_options
 )
 
-# Tenure slider
 tenure_min = int(df_raw["tenure"].min())
 tenure_max = int(df_raw["tenure"].max())
 tenure_filter = st.sidebar.slider(
@@ -109,7 +113,7 @@ tenure_filter = st.sidebar.slider(
     value=(tenure_min, tenure_max)
 )
 
-# Apply filters to df_raw (charts & metrics use this)
+# Apply filters to df_raw (these affect metrics and some charts)
 filtered_df = df_raw[
     (df_raw["Contract"].isin(contract_filter)) &
     (df_raw["Churn"].isin(churn_filter)) &
@@ -123,7 +127,7 @@ if filtered_df.empty:
 
 
 # ------------------ OVERVIEW METRICS ------------------ #
-st.subheader("Overview")
+st.subheader("📌 Overview (After Filters)")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -142,7 +146,7 @@ col4.metric("Avg Tenure", f"{avg_tenure:.1f} months")
 st.markdown("---")
 row1_col1, row1_col2 = st.columns(2)
 
-# 1) Churn vs Non-Churn Count
+# 1) Churn vs Non-Churn Count (uses filtered data)
 with row1_col1:
     st.subheader("Churn vs Non-Churn Count")
     fig1, ax1 = plt.subplots(figsize=(5, 4))
@@ -152,7 +156,7 @@ with row1_col1:
     ax1.set_ylabel("Count")
     st.pyplot(fig1)
 
-# 2) Churn Rate by Contract Type
+# 2) Churn Rate by Contract Type (uses filtered data)
 with row1_col2:
     st.subheader("Churn Rate by Contract Type")
     fig2, ax2 = plt.subplots(figsize=(7, 4))
@@ -168,12 +172,12 @@ with row1_col2:
 st.markdown("---")
 row2_col1, row2_col2 = st.columns(2)
 
-# 3) Tenure Distribution by Churn Status
+# 3) Tenure Distribution by Churn Status (MATCHES NOTEBOOK: uses FULL DATA)
 with row2_col1:
-    st.subheader("Tenure Distribution by Churn Status")
+    st.subheader("Tenure Distribution by Churn Status (Full Dataset)")
     fig3, ax3 = plt.subplots(figsize=(7, 4))
     sns.kdeplot(
-        data=filtered_df,
+        data=df_raw,           # full dataset, not filtered
         x="tenure",
         hue="Churn",
         fill=True,
@@ -186,14 +190,14 @@ with row2_col1:
     ax3.set_ylabel("Density")
     st.pyplot(fig3)
 
-# 4) Correlation Heatmap (numeric features of filtered data)
+# 4) Correlation Heatmap (MATCHES NOTEBOOK: numeric features of ENCODED MODEL DF)
 with row2_col2:
-    st.subheader("Correlation Heatmap")
-    numeric_df = filtered_df.select_dtypes(include="number")
-    corr = numeric_df.corr()
+    st.subheader("Correlation Heatmap (Encoded Numeric Features)")
+    numeric_df_full = df_model.select_dtypes(include="number")
+    corr_full = numeric_df_full.corr()
 
     fig4, ax4 = plt.subplots(figsize=(8, 6))
-    sns.heatmap(corr, cmap="coolwarm", center=0, ax=ax4)
+    sns.heatmap(corr_full, cmap="coolwarm", center=0, ax=ax4)
     ax4.set_title("Correlation Heatmap")
     st.pyplot(fig4)
 
@@ -225,8 +229,5 @@ with row3_col2:
 
 # ------------------ RAW DATA ------------------ #
 st.markdown("---")
-with st.expander("Show Dataset"):
+with st.expander("Show Raw Filtered Data"):
     st.dataframe(filtered_df)
-
-
-
