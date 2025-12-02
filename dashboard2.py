@@ -172,23 +172,23 @@ with row1_col2:
 st.markdown("---")
 row2_col1, row2_col2 = st.columns(2)
 
-# 3) Tenure Distribution by Churn Status (MATCHES NOTEBOOK: uses FULL DATA)
+# 3) Tenure Distribution by Churn Status (MATCH NOTEBOOK: encoded df, legend 0/1)
 with row2_col1:
-    st.subheader("Tenure Distribution by Churn Status (Full Dataset)")
+    st.subheader("Tenure Distribution by Churn Status")
     fig3, ax3 = plt.subplots(figsize=(7, 4))
     sns.kdeplot(
-        data=df_raw,           # full dataset, not filtered
+        data=df_model,      # encoded version (Churn = 0 / 1)
         x="tenure",
-        hue="Churn",
+        hue="Churn",        # legend will show 0 and 1
         fill=True,
         alpha=0.5,
-        common_norm=False,
-        ax=ax3
+        ax=ax3              # NOTE: no common_norm here (use default)
     )
     ax3.set_title("Tenure Distribution by Churn Status")
     ax3.set_xlabel("tenure")
     ax3.set_ylabel("Density")
     st.pyplot(fig3)
+
 
 # 4) Correlation Heatmap (MATCHES NOTEBOOK: numeric features of ENCODED MODEL DF)
 with row2_col2:
@@ -231,3 +231,4 @@ with row3_col2:
 st.markdown("---")
 with st.expander("Show Raw Filtered Data"):
     st.dataframe(filtered_df)
+
