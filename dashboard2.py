@@ -172,22 +172,29 @@ with row1_col2:
 st.markdown("---")
 row2_col1, row2_col2 = st.columns(2)
 
-# 3) Tenure Distribution by Churn Status (MATCH NOTEBOOK: encoded df, legend 0/1)
+# 3) Tenure Distribution by Churn Status (MATCH NOTEBOOK curves + Yes/No legend)
 with row2_col1:
     st.subheader("Tenure Distribution by Churn Status")
+
+    # temporary copy to map numbers to Yes/No (for legend)
+    temp_df = df_model.copy()
+    temp_df["ChurnLabel"] = temp_df["Churn"].map({0: "No", 1: "Yes"})
+
     fig3, ax3 = plt.subplots(figsize=(7, 4))
     sns.kdeplot(
-        data=df_model,      # encoded version (Churn = 0 / 1)
+        data=temp_df,
         x="tenure",
-        hue="Churn",        # legend will show 0 and 1
+        hue="ChurnLabel",     # now legend shows Yes/No
         fill=True,
         alpha=0.5,
-        ax=ax3              # NOTE: no common_norm here (use default)
+        ax=ax3                # NOTE: default normalization (matches notebook)
     )
+
     ax3.set_title("Tenure Distribution by Churn Status")
     ax3.set_xlabel("tenure")
     ax3.set_ylabel("Density")
     st.pyplot(fig3)
+
 
 
 # 4) Correlation Heatmap (MATCHES NOTEBOOK: numeric features of ENCODED MODEL DF)
@@ -231,4 +238,5 @@ with row3_col2:
 st.markdown("---")
 with st.expander("Show Raw Filtered Data"):
     st.dataframe(filtered_df)
+
 
