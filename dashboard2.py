@@ -3,12 +3,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-# -------------------- PAGE SETUP --------------------
+#PAGE SETUP
 st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
-st.title("📊 Telco Customer Churn – Dashboard (Matplotlib, No Hover)")
+st.title("Telco Customer Churn – Dashboard (Matplotlib, No Hover)")
 
 
-# -------------------- LOAD DATA --------------------
+#LOAD DATA
 @st.cache_data
 def load_data():
     df = pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
@@ -19,7 +19,7 @@ def load_data():
 df = load_data()
 
 
-# -------------------- SIDEBAR FILTERS --------------------
+#SIDEBAR FILTERS
 st.sidebar.header("Filters")
 
 # Contract filter
@@ -69,8 +69,8 @@ if filtered_df.empty:
     st.stop()
 
 
-# -------------------- TOP METRICS --------------------
-st.subheader("📌 Overview (After Filters)")
+#TOP METRICS 
+st.subheader("Overview (After Filters)")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -85,7 +85,7 @@ col3.metric("Avg Monthly Charges", f"${avg_monthly:.2f}")
 col4.metric("Avg Tenure", f"{avg_tenure:.1f} months")
 
 
-# -------------------- CHARTS ROW 1 --------------------
+#CHARTS ROW 1
 st.markdown("---")
 left, right = st.columns(2)
 
@@ -118,7 +118,7 @@ with right:
     st.pyplot(fig)
 
 
-# -------------------- CHARTS ROW 2 --------------------
+#CHARTS ROW 2 
 st.markdown("---")
 left2, right2 = st.columns(2)
 
@@ -150,7 +150,7 @@ with right2:
     st.pyplot(fig)
 
 
-# -------------------- CHARTS ROW 3 --------------------
+#CHARTS ROW 3
 st.markdown("---")
 left3, right3 = st.columns(2)
 
@@ -187,7 +187,7 @@ with right3:
     st.pyplot(fig)
 
 
-# -------------------- CORRELATION HEATMAP --------------------
+#CORRELATION HEATMAP
 st.markdown("---")
 st.subheader("Correlation Heatmap (Numeric Features)")
 
@@ -204,7 +204,8 @@ fig.colorbar(cax)
 st.pyplot(fig)
 
 
-# -------------------- RAW DATA --------------------
+#RAW DATA
 st.markdown("---")
-with st.expander("Show Raw Filtered Data"):
+with st.expander("Show Dataset"):
     st.dataframe(filtered_df)
+
