@@ -15,10 +15,7 @@ sns.set(style="whitegrid")
 st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
 st.title("Telco Customer Churn Dashboard")
 
-# ------------------ OVERVIEW TEXT ------------------ #
-st.markdown("""
-### Overview
-""")
+
 
 
 # ------------------ LOAD & PREP DATA ------------------ #
@@ -116,7 +113,9 @@ if filtered_df.empty:
 
 
 # ------------------ OVERVIEW METRICS ------------------ #
-st.subheader("Overview (After Filters)")
+st.markdown("""
+### Overview
+""")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -227,6 +226,7 @@ with row3_col2:
 st.markdown("---")
 with st.expander("Show Raw Filtered Data"):
     st.dataframe(filtered_df)
+
 
 
 
