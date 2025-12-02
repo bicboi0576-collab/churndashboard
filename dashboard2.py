@@ -129,6 +129,11 @@ col2.metric("Churn Rate", f"{churn_rate:.2f}%")
 col3.metric("Avg Monthly Charges", f"${avg_monthly:.2f}")
 col4.metric("Avg Tenure", f"{avg_tenure:.1f} months")
 
+# ------------------ RAW DATA ------------------ #
+st.markdown("---")
+with st.expander("Show Dataset"):
+    st.dataframe(filtered_df)
+
 
 # ------------------ ROW 1: CHURN COUNT & CONTRACT ------------------ #
 st.markdown("---")
@@ -222,10 +227,8 @@ with row3_col2:
     st.pyplot(fig6)
 
 
-# ------------------ RAW DATA ------------------ #
-st.markdown("---")
-with st.expander("Show Dataset"):
-    st.dataframe(filtered_df)
+
+
 
 
 
