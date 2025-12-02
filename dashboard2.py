@@ -2,53 +2,117 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-#PAGE SETUP
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix
+
+sns.set(style="whitegrid")
+
+# ------------------ PAGE CONFIG ------------------ #
 st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
-st.title("Telco Customer Churn – Dashboard")
+st.title("📊 Telco Customer Churn Dashboard")
+
+# ------------------ OVERVIEW TEXT ------------------ #
+st.markdown("""
+### Overview
+
+This dashboard explores a telecom customer churn dataset and visualizes patterns related to which customers are more likely to leave (churn).
+You can use the filters on the left to focus on specific customer segments based on contract type, churn status, internet service, and tenure.
+
+The charts below show:
+- How many customers churn vs. stay  
+- How churn varies by contract type  
+- How tenure is distributed for churners vs. non-churners  
+- Correlations between numeric variables  
+- How well a Random Forest model predicts churn (confusion matrix)  
+- Which features are most important for predicting churn  
+""")
 
 
-#LOAD DATA
+# ------------------ LOAD & PREP DATA ------------------ #
 @st.cache_data
-def load_data():
+def load_and_prepare():
+    # Load raw data
     df = pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
+
+    # Clean TotalCharges
     df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
     df = df.dropna(subset=["TotalCharges"]).reset_index(drop=True)
-    return df
 
-df = load_data()
+    # Keep a copy with original categorical labels for charts/filters
+    df_raw = df.copy()
+
+    # Prepare a version for modeling (encode categoricals)
+    df_model = df_raw.drop(columns=["customerID"])
+    le_dict = {}
+    for col in df_model.select_dtypes(include="object").columns:
+        le = LabelEncoder()
+        df_model[col] = le.fit_transform(df_model[col])
+        le_dict[col] = le
+
+    # Train/test split for model (on full dataset, not filtered)
+    X = df_model.drop("Churn", axis=1)
+    y = df_model["Churn"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )
+
+    # Random Forest model
+    rf = RandomForestClassifier(
+        n_estimators=150,
+        max_depth=12,
+        random_state=42
+    )
+    rf.fit(X_train, y_train)
+    y_pred = rf.predict(X_test)
+
+    # Confusion matrix
+    cm = confusion_matrix(y_test, y_pred)
+
+    # Feature importance (top 15)
+    importances = pd.Series(rf.feature_importances_, index=X.columns)
+    top15 = importances.sort_values(ascending=False).head(15)
+
+    return df_raw, cm, top15
 
 
-#SIDEBAR FILTERS
+df_raw, cm, top15 = load_and_prepare()
+
+
+# ------------------ SIDEBAR FILTERS ------------------ #
 st.sidebar.header("Filters")
 
-# Contract filter
-contract_list = df["Contract"].unique().tolist()
+# Contract filter (uses original text labels)
+contract_options = df_raw["Contract"].unique().tolist()
 contract_filter = st.sidebar.multiselect(
     "Contract Type",
-    options=contract_list,
-    default=contract_list
+    options=contract_options,
+    default=contract_options
 )
 
 # Churn filter
-churn_list = df["Churn"].unique().tolist()
+churn_options = df_raw["Churn"].unique().tolist()
 churn_filter = st.sidebar.multiselect(
     "Churn Status",
-    options=churn_list,
-    default=churn_list
+    options=churn_options,
+    default=churn_options
 )
 
-# Internet service filter
-internet_list = df["InternetService"].unique().tolist()
+# Internet Service filter
+internet_options = df_raw["InternetService"].unique().tolist()
 internet_filter = st.sidebar.multiselect(
     "Internet Service Type",
-    options=internet_list,
-    default=internet_list
+    options=internet_options,
+    default=internet_options
 )
 
 # Tenure slider
-tenure_min = int(df["tenure"].min())
-tenure_max = int(df["tenure"].max())
+tenure_min = int(df_raw["tenure"].min())
+tenure_max = int(df_raw["tenure"].max())
 tenure_filter = st.sidebar.slider(
     "Tenure Range (months)",
     min_value=tenure_min,
@@ -56,12 +120,12 @@ tenure_filter = st.sidebar.slider(
     value=(tenure_min, tenure_max)
 )
 
-# Apply filters
-filtered_df = df[
-    (df["Contract"].isin(contract_filter)) &
-    (df["Churn"].isin(churn_filter)) &
-    (df["InternetService"].isin(internet_filter)) &
-    (df["tenure"].between(tenure_filter[0], tenure_filter[1]))
+# Apply filters to df_raw (charts & metrics use this)
+filtered_df = df_raw[
+    (df_raw["Contract"].isin(contract_filter)) &
+    (df_raw["Churn"].isin(churn_filter)) &
+    (df_raw["InternetService"].isin(internet_filter)) &
+    (df_raw["tenure"].between(tenure_filter[0], tenure_filter[1]))
 ]
 
 if filtered_df.empty:
@@ -69,8 +133,8 @@ if filtered_df.empty:
     st.stop()
 
 
-#TOP METRICS 
-st.subheader("Overview")
+# ------------------ OVERVIEW METRICS ------------------ #
+st.subheader("📌 Overview (After Filters)")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -85,129 +149,92 @@ col3.metric("Avg Monthly Charges", f"${avg_monthly:.2f}")
 col4.metric("Avg Tenure", f"{avg_tenure:.1f} months")
 
 
-#CHARTS ROW 1
+# ------------------ ROW 1: CHURN COUNT & CONTRACT ------------------ #
 st.markdown("---")
-left, right = st.columns(2)
+row1_col1, row1_col2 = st.columns(2)
 
-# 1) Churn distribution
-with left:
-    st.subheader("Churn Distribution")
-    counts = filtered_df["Churn"].value_counts().reindex(["No", "Yes"])
-    fig, ax = plt.subplots(figsize=(5, 4))
-    ax.bar(counts.index, counts.values)
-    ax.set_xlabel("Churn")
-    ax.set_ylabel("Count")
-    st.pyplot(fig)
+# 1) Churn vs Non-Churn Count
+with row1_col1:
+    st.subheader("Churn vs Non-Churn Count")
+    fig1, ax1 = plt.subplots(figsize=(5, 4))
+    sns.countplot(data=filtered_df, x="Churn", ax=ax1)
+    ax1.set_title("Churn vs Non-Churn Count")
+    ax1.set_xlabel("Churn")
+    ax1.set_ylabel("Count")
+    st.pyplot(fig1)
 
-# 2) Churn by contract type (grouped bar)
-with right:
-    st.subheader("Churn by Contract Type")
-    ct = pd.crosstab(filtered_df["Contract"], filtered_df["Churn"])
-    fig, ax = plt.subplots(figsize=(6, 4))
-    x = np.arange(len(ct.index))
-    width = 0.35
-
-    ax.bar(x - width/2, ct["No"], width, label="No")
-    ax.bar(x + width/2, ct["Yes"], width, label="Yes")
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(ct.index, rotation=15)
-    ax.set_xlabel("Contract Type")
-    ax.set_ylabel("Count")
-    ax.legend(title="Churn")
-    st.pyplot(fig)
+# 2) Churn Rate by Contract Type
+with row1_col2:
+    st.subheader("Churn Rate by Contract Type")
+    fig2, ax2 = plt.subplots(figsize=(7, 4))
+    sns.countplot(data=filtered_df, x="Contract", hue="Churn", ax=ax2)
+    ax2.set_title("Churn Rate by Contract Type")
+    ax2.set_xlabel("Contract")
+    ax2.set_ylabel("count")
+    ax2.tick_params(axis='x', rotation=15)
+    st.pyplot(fig2)
 
 
-#CHARTS ROW 2 
+# ------------------ ROW 2: TENURE KDE & CORR HEATMAP ------------------ #
 st.markdown("---")
-left2, right2 = st.columns(2)
+row2_col1, row2_col2 = st.columns(2)
 
-# 3) Tenure distribution by churn (overlapping histograms)
-with left2:
-    st.subheader("Tenure Distribution by Churn")
-    fig, ax = plt.subplots(figsize=(6, 4))
-    tenure_no = filtered_df[filtered_df["Churn"] == "No"]["tenure"]
-    tenure_yes = filtered_df[filtered_df["Churn"] == "Yes"]["tenure"]
+# 3) Tenure Distribution by Churn Status
+with row2_col1:
+    st.subheader("Tenure Distribution by Churn Status")
+    fig3, ax3 = plt.subplots(figsize=(7, 4))
+    sns.kdeplot(
+        data=filtered_df,
+        x="tenure",
+        hue="Churn",
+        fill=True,
+        alpha=0.5,
+        common_norm=False,
+        ax=ax3
+    )
+    ax3.set_title("Tenure Distribution by Churn Status")
+    ax3.set_xlabel("tenure")
+    ax3.set_ylabel("Density")
+    st.pyplot(fig3)
 
-    ax.hist(tenure_no, bins=30, alpha=0.6, label="No")
-    ax.hist(tenure_yes, bins=30, alpha=0.6, label="Yes")
-    ax.set_xlabel("Tenure (months)")
-    ax.set_ylabel("Count")
-    ax.legend(title="Churn")
-    st.pyplot(fig)
+# 4) Correlation Heatmap (numeric features of filtered data)
+with row2_col2:
+    st.subheader("Correlation Heatmap")
+    numeric_df = filtered_df.select_dtypes(include="number")
+    corr = numeric_df.corr()
 
-# 4) Monthly charges by churn (boxplot)
-with right2:
-    st.subheader("Monthly Charges by Churn")
-    fig, ax = plt.subplots(figsize=(6, 4))
-    data_to_plot = [
-        filtered_df[filtered_df["Churn"] == "No"]["MonthlyCharges"],
-        filtered_df[filtered_df["Churn"] == "Yes"]["MonthlyCharges"]
-    ]
-    ax.boxplot(data_to_plot, labels=["No", "Yes"])
-    ax.set_xlabel("Churn")
-    ax.set_ylabel("Monthly Charges ($)")
-    st.pyplot(fig)
+    fig4, ax4 = plt.subplots(figsize=(8, 6))
+    sns.heatmap(corr, cmap="coolwarm", center=0, ax=ax4)
+    ax4.set_title("Correlation Heatmap")
+    st.pyplot(fig4)
 
 
-#CHARTS ROW 3
+# ------------------ ROW 3: CONFUSION MATRIX & FEATURE IMPORTANCE ------------------ #
 st.markdown("---")
-left3, right3 = st.columns(2)
+row3_col1, row3_col2 = st.columns(2)
 
-# 5) Churn by Internet Service Type
-with left3:
-    st.subheader("Churn by Internet Service Type")
-    ct_int = pd.crosstab(filtered_df["InternetService"], filtered_df["Churn"])
-    fig, ax = plt.subplots(figsize=(6, 4))
-    x = np.arange(len(ct_int.index))
-    width = 0.35
-    ax.bar(x - width/2, ct_int["No"], width, label="No")
-    ax.bar(x + width/2, ct_int["Yes"], width, label="Yes")
-    ax.set_xticks(x)
-    ax.set_xticklabels(ct_int.index, rotation=15)
-    ax.set_xlabel("Internet Service")
-    ax.set_ylabel("Count")
-    ax.legend(title="Churn")
-    st.pyplot(fig)
+# 5) Confusion Matrix (from full model)
+with row3_col1:
+    st.subheader("Confusion Matrix (Random Forest)")
+    fig5, ax5 = plt.subplots(figsize=(5, 4))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Greens", linewidths=0.5, ax=ax5)
+    ax5.set_title("Confusion Matrix")
+    ax5.set_xlabel("Predicted")
+    ax5.set_ylabel("Actual")
+    st.pyplot(fig5)
 
-# 6) Churn by Payment Method
-with right3:
-    st.subheader("Churn by Payment Method")
-    ct_pay = pd.crosstab(filtered_df["PaymentMethod"], filtered_df["Churn"])
-    fig, ax = plt.subplots(figsize=(7, 4))
-    x = np.arange(len(ct_pay.index))
-    width = 0.35
-    ax.bar(x - width/2, ct_pay["No"], width, label="No")
-    ax.bar(x + width/2, ct_pay["Yes"], width, label="Yes")
-    ax.set_xticks(x)
-    ax.set_xticklabels(ct_pay.index, rotation=25, ha="right")
-    ax.set_xlabel("Payment Method")
-    ax.set_ylabel("Count")
-    ax.legend(title="Churn")
-    st.pyplot(fig)
+# 6) Top 15 Features Predicting Churn (from full model)
+with row3_col2:
+    st.subheader("Top 15 Features Predicting Churn")
+    fig6, ax6 = plt.subplots(figsize=(7, 5))
+    ax6.barh(top15.index[::-1], top15.values[::-1])
+    ax6.set_title("Top 15 Features Predicting Churn")
+    ax6.set_xlabel("Importance")
+    ax6.set_ylabel("")
+    st.pyplot(fig6)
 
 
-#CORRELATION HEATMAP
+# ------------------ RAW DATA ------------------ #
 st.markdown("---")
-st.subheader("Correlation Heatmap (Numeric Features)")
-
-numeric_df = filtered_df.select_dtypes(include="number")
-corr = numeric_df.corr()
-
-fig, ax = plt.subplots(figsize=(9, 7))
-cax = ax.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
-ax.set_xticks(np.arange(len(corr.columns)))
-ax.set_yticks(np.arange(len(corr.columns)))
-ax.set_xticklabels(corr.columns, rotation=90)
-ax.set_yticklabels(corr.columns)
-fig.colorbar(cax)
-st.pyplot(fig)
-
-
-#RAW DATA
-st.markdown("---")
-with st.expander("Show Dataset"):
+with st.expander("Show Raw Filtered Data"):
     st.dataframe(filtered_df)
-
-
-
