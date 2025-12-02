@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 #PAGE SETUP
 st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
-st.title("Telco Customer Churn – Dashboard (Matplotlib, No Hover)")
+st.title("Telco Customer Churn – Dashboard")
 
 
 #LOAD DATA
@@ -70,7 +70,7 @@ if filtered_df.empty:
 
 
 #TOP METRICS 
-st.subheader("Overview (After Filters)")
+st.subheader("Overview")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -208,4 +208,5 @@ st.pyplot(fig)
 st.markdown("---")
 with st.expander("Show Dataset"):
     st.dataframe(filtered_df)
+
 
