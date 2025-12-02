@@ -4,7 +4,7 @@ import plotly.express as px
 
 # -------------------- PAGE SETUP --------------------
 st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
-st.title("Telco Customer Churn – Interactive Dashboard")
+st.title("📊 Telco Customer Churn – Interactive Dashboard")
 
 
 # -------------------- LOAD DATA --------------------
@@ -71,7 +71,7 @@ if filtered_df.empty:
 
 
 # -------------------- TOP METRICS --------------------
-st.subheader("Overview (After Filters)")
+st.subheader("📌 Overview (After Filters)")
 
 col1, col2, col3, col4 = st.columns(4)
 
