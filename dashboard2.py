@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
-import seaborn as sns
+import numpy as np
 import matplotlib.pyplot as plt
 
 # -------------------- PAGE SETUP --------------------
 st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
-st.title("📊 Telco Customer Churn – Dashboard (No Hover Version)")
+st.title("📊 Telco Customer Churn – Dashboard (Matplotlib, No Hover)")
 
 
 # -------------------- LOAD DATA --------------------
@@ -89,19 +89,32 @@ col4.metric("Avg Tenure", f"{avg_tenure:.1f} months")
 st.markdown("---")
 left, right = st.columns(2)
 
-# Churn distribution
+# 1) Churn distribution
 with left:
     st.subheader("Churn Distribution")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.countplot(data=filtered_df, x="Churn", ax=ax)
+    counts = filtered_df["Churn"].value_counts().reindex(["No", "Yes"])
+    fig, ax = plt.subplots(figsize=(5, 4))
+    ax.bar(counts.index, counts.values)
+    ax.set_xlabel("Churn")
+    ax.set_ylabel("Count")
     st.pyplot(fig)
 
-# Churn by contract type
+# 2) Churn by contract type (grouped bar)
 with right:
     st.subheader("Churn by Contract Type")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.countplot(data=filtered_df, x="Contract", hue="Churn", ax=ax)
-    plt.xticks(rotation=15)
+    ct = pd.crosstab(filtered_df["Contract"], filtered_df["Churn"])
+    fig, ax = plt.subplots(figsize=(6, 4))
+    x = np.arange(len(ct.index))
+    width = 0.35
+
+    ax.bar(x - width/2, ct["No"], width, label="No")
+    ax.bar(x + width/2, ct["Yes"], width, label="Yes")
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(ct.index, rotation=15)
+    ax.set_xlabel("Contract Type")
+    ax.set_ylabel("Count")
+    ax.legend(title="Churn")
     st.pyplot(fig)
 
 
@@ -109,39 +122,68 @@ with right:
 st.markdown("---")
 left2, right2 = st.columns(2)
 
-# Tenure distribution
+# 3) Tenure distribution by churn (overlapping histograms)
 with left2:
     st.subheader("Tenure Distribution by Churn")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.kdeplot(data=filtered_df, x="tenure", hue="Churn", fill=True, ax=ax)
+    fig, ax = plt.subplots(figsize=(6, 4))
+    tenure_no = filtered_df[filtered_df["Churn"] == "No"]["tenure"]
+    tenure_yes = filtered_df[filtered_df["Churn"] == "Yes"]["tenure"]
+
+    ax.hist(tenure_no, bins=30, alpha=0.6, label="No")
+    ax.hist(tenure_yes, bins=30, alpha=0.6, label="Yes")
+    ax.set_xlabel("Tenure (months)")
+    ax.set_ylabel("Count")
+    ax.legend(title="Churn")
     st.pyplot(fig)
 
-# Monthly charges by churn
+# 4) Monthly charges by churn (boxplot)
 with right2:
     st.subheader("Monthly Charges by Churn")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.boxplot(data=filtered_df, x="Churn", y="MonthlyCharges", ax=ax)
+    fig, ax = plt.subplots(figsize=(6, 4))
+    data_to_plot = [
+        filtered_df[filtered_df["Churn"] == "No"]["MonthlyCharges"],
+        filtered_df[filtered_df["Churn"] == "Yes"]["MonthlyCharges"]
+    ]
+    ax.boxplot(data_to_plot, labels=["No", "Yes"])
+    ax.set_xlabel("Churn")
+    ax.set_ylabel("Monthly Charges ($)")
     st.pyplot(fig)
 
 
-# -------------------- CHARTS ROW 3 (ADDED) --------------------
+# -------------------- CHARTS ROW 3 --------------------
 st.markdown("---")
 left3, right3 = st.columns(2)
 
-# Churn by Internet Service
+# 5) Churn by Internet Service Type
 with left3:
     st.subheader("Churn by Internet Service Type")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.countplot(data=filtered_df, x="InternetService", hue="Churn", ax=ax)
-    plt.xticks(rotation=15)
+    ct_int = pd.crosstab(filtered_df["InternetService"], filtered_df["Churn"])
+    fig, ax = plt.subplots(figsize=(6, 4))
+    x = np.arange(len(ct_int.index))
+    width = 0.35
+    ax.bar(x - width/2, ct_int["No"], width, label="No")
+    ax.bar(x + width/2, ct_int["Yes"], width, label="Yes")
+    ax.set_xticks(x)
+    ax.set_xticklabels(ct_int.index, rotation=15)
+    ax.set_xlabel("Internet Service")
+    ax.set_ylabel("Count")
+    ax.legend(title="Churn")
     st.pyplot(fig)
 
-# Churn by Payment Method
+# 6) Churn by Payment Method
 with right3:
     st.subheader("Churn by Payment Method")
-    fig, ax = plt.subplots(figsize=(6,4))
-    sns.countplot(data=filtered_df, x="PaymentMethod", hue="Churn", ax=ax)
-    plt.xticks(rotation=25)
+    ct_pay = pd.crosstab(filtered_df["PaymentMethod"], filtered_df["Churn"])
+    fig, ax = plt.subplots(figsize=(7, 4))
+    x = np.arange(len(ct_pay.index))
+    width = 0.35
+    ax.bar(x - width/2, ct_pay["No"], width, label="No")
+    ax.bar(x + width/2, ct_pay["Yes"], width, label="Yes")
+    ax.set_xticks(x)
+    ax.set_xticklabels(ct_pay.index, rotation=25, ha="right")
+    ax.set_xlabel("Payment Method")
+    ax.set_ylabel("Count")
+    ax.legend(title="Churn")
     st.pyplot(fig)
 
 
@@ -152,8 +194,13 @@ st.subheader("Correlation Heatmap (Numeric Features)")
 numeric_df = filtered_df.select_dtypes(include="number")
 corr = numeric_df.corr()
 
-fig, ax = plt.subplots(figsize=(10,8))
-sns.heatmap(corr, cmap="coolwarm", center=0, annot=False, ax=ax)
+fig, ax = plt.subplots(figsize=(9, 7))
+cax = ax.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
+ax.set_xticks(np.arange(len(corr.columns)))
+ax.set_yticks(np.arange(len(corr.columns)))
+ax.set_xticklabels(corr.columns, rotation=90)
+ax.set_yticklabels(corr.columns)
+fig.colorbar(cax)
 st.pyplot(fig)
 
 
